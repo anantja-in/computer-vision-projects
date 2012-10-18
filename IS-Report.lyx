@@ -1,0 +1,3248 @@
+#LyX 1.6.5 created this file. For more info see http://www.lyx.org/
+\lyxformat 345
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\language english
+\inputencoding auto
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\cite_engine basic
+\use_bibtopic false
+\paperorientation portrait
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\defskip medskip
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\author "" 
+\author "" 
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Independent Study on 3-D Reconstruction and Related Problems in Computer
+ Vision
+\end_layout
+
+\begin_layout Author
+Anant Jain
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+2008EE10330, Department of Electrical Engineering, Indian Institute of Technolog
+y, Delhi
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Date
+Supervised by: Dr.
+ Subhasis Banerjee
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Department of Computer Science and Engineering, Indian Institute of Technology,
+ Delhi.
+ 
+\family typewriter
+www.cse.iitd.ac.in/~suban
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\align center
+May 9th, 2011
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Abstract
+This report is a compendium of the work done as a part of an Independent
+ Study on 3-D Reconstruction and other topics in Computer Vision in conjunction
+ with CSL840 lecture course.
+ The report has brief descriptions and compilation of results of the assignments
+, lectures, exams and a final project on geotagging web images using (pre-)compu
+ted sparse point cloud models of landmarks.
+ The topics covered over the lectures included the problem of 3-D reconstruction
+ - single view geometry, multiple view geometry and affine multiple view
+ geometry, robust computation techniques, Scale Invariant Feature Transform,
+ Pyramid methods in Image Processing, Graph Cut methods, Viola Jones method
+ of face detection, problem of classification, Lucas Kanade algorithm and
+ the KLT and Kalman trackers for alignment problems and a few other miscellanous
+ topics.
+ Part I covers the assignment on removal of affine and projective transformative
+ effects for measurement of distances on a plane in a single view.
+ Part II covers the assignment on various techniques tried out for camera
+ calibration including the industry standart Zhang calibration on OpenCV.
+ Part III outlines the work done towards the final project.
+ Part IV is a compilation of the Minor and Major papers.
+\end_layout
+
+\begin_layout Abstract
+\begin_inset Newpage clearpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Abstract
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Abstract
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset FloatList figure
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Part
+Removal of Affine and Projective Transformations for measurement of distances
+ on a plane in a single view.
+\end_layout
+
+\begin_layout Section
+Problem introduction:
+\end_layout
+
+\begin_layout Standard
+A projective transformation can be decomposed into a chain of transformations
+ (Euclidean, affine, projective): 
+\begin_inset Formula \[
+\mathbf{H=H_{E}H_{A}H_{P}}=\left[\begin{array}{cc}
+s\mathbf{R} & \mathbf{t}\\
+\mathbf{0}^{\mathbf{T}} & 1\end{array}\right]\left[\begin{array}{cc}
+\mathbf{B} & \mathbf{0}\\
+\mathbf{0^{T}} & 1\end{array}\right]\left[\begin{array}{cc}
+\mathbf{I} & \mathbf{0}\\
+\mathbf{v^{T}} & v\end{array}\right]=\left[\begin{array}{cc}
+\mathbf{A} & \mathbf{tv}\\
+\mathbf{v^{T}} & v\end{array}\right]\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The decomposition is valid if 
+\begin_inset Formula $v\neq0$
+\end_inset
+
+ and unique if 
+\begin_inset Formula $s$
+\end_inset
+
+ is positive.
+\end_layout
+
+\begin_layout Standard
+The goal of this part is to be able to remove projective transformations
+ to get a Euclidean reconstruction of a plane from a single view, so as
+ to make measurements on that plane.
+ Two approaches are considered for this assignment.
+ The first one is a stratified approach, wherein first projective distortions
+ are removed followed by affine distortions.
+ The second one is a one step method given by Hartley and Zisserman (pages
+ 35,37.) Both the approaches are discussed below.
+\end_layout
+
+\begin_layout Section
+Approach 1: Stratified approach
+\end_layout
+
+\begin_layout Subsection
+Step 1: Affine rectification
+\end_layout
+
+\begin_layout Standard
+Since parallel lines remain parallel under aﬃne distortion, we can recover
+ the affine properties from images by the transformation matrix 
+\begin_inset Formula $\mathbf{H}$
+\end_inset
+
+ that maps the vanishing line back into the line at inﬁnity.
+ If the imaged line at inifinity is 
+\begin_inset Formula $l=(l_{1},l_{2},l_{3})^{T}$
+\end_inset
+
+, then provided 
+\begin_inset Formula $l_{3}\neq0$
+\end_inset
+
+, a suitable projective transformation that maps 
+\begin_inset Formula $l$
+\end_inset
+
+ back to 
+\begin_inset Formula $l_{\infty}$
+\end_inset
+
+ is
+\begin_inset Formula \[
+\mathbf{H=\left[\begin{array}{ccc}
+\mathbf{1} & \mathbf{0} & \mathbf{0}\\
+\mathbf{0} & \mathbf{1} & \mathbf{0}\\
+\mathbf{l_{1}} & \mathbf{l_{2}} & \mathbf{l_{3}}\end{array}\right]H_{A}}\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Step 2: Metric rectification from affine image
+\end_layout
+
+\begin_layout Standard
+Now that we have the affinely rectiﬁed image, we want to ﬁnd the affine
+ transform matrix
+\begin_inset Formula \[
+\mathbf{H=\left[\begin{array}{cc}
+A & t\\
+\mathbf{0} & \mathbf{1}\end{array}\right]}\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It is shown in Hartley and Zisserman's book 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-3"
+
+\end_inset
+
+ that enforcing orthogonality between two pairs of orthogonal lines are
+ enough to solve for A and t and hence 
+\series bold
+
+\begin_inset Formula $\mathbf{H}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Approach 2: Metric rectification via the estimation of the dual conic 
+\begin_inset Formula $C_{\infty}^{*}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+If the point transformation from the world to the image is 
+\begin_inset Formula $x'=Hx$
+\end_inset
+
+ where the 
+\begin_inset Formula $x$
+\end_inset
+
+ frame is Euclidean and the 
+\begin_inset Formula $x'$
+\end_inset
+
+ frame is projective, 
+\begin_inset Formula $C_{\infty}^{*}$
+\end_inset
+
+ transforms as 
+\begin_inset Formula $C_{\infty}^{*}=HC_{\infty}^{*}H^{T}$
+\end_inset
+
+.
+ Once 
+\begin_inset Formula $C_{\infty}^{*}$
+\end_inset
+
+ has been identified on the projective plane, the rectifying homography
+ can be directly estimated.
+ Writing 
+\begin_inset Formula $C_{\infty}^{*}$
+\end_inset
+
+ as (use SVD):
+\begin_inset Formula \[
+\]
+
+\end_inset
+
+
+\begin_inset Formula \[
+\mathbf{C_{\infty}^{*}=U\left[\begin{array}{ccc}
+\mathbf{1} & \mathbf{0} & \mathbf{0}\\
+\mathbf{0} & \mathbf{1} & \mathbf{0}\\
+\mathbf{0} & \mathbf{0} & \mathbf{0}\end{array}\right]U^{T}}\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+we get the rectifying homography as 
+\begin_inset Formula $H^{-1}=U^{-1}$
+\end_inset
+
+.
+ Hartley and Zisserman
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-3"
+
+\end_inset
+
+ suggest that we determine 
+\begin_inset Formula $C_{\infty}^{*}$
+\end_inset
+
+ on the perspectively imaged plane by specifying five orthogonal line pairs
+ and fitting a conic (using the constraint 
+\begin_inset Formula $l^{T}$
+\end_inset
+
+
+\begin_inset Formula $C_{\infty}^{*}r=0$
+\end_inset
+
+ ).
+\end_layout
+
+\begin_layout Section
+Results
+\end_layout
+
+\begin_layout Standard
+The stratified approach was implemented successfully in MATLAB.
+ The user is asked to specify a set of four vertices in a rectange (a tile)
+ for the affine rectification.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename assignments/stratified/pick_points.jpg
+	display false
+	scale 40
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename assignments/stratified/linesDrawn.jpg
+	display false
+	scale 40
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Picking points on the image, lines fit through the points.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename assignments/stratified/affineCorrected.jpg
+	display false
+	scale 40
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+After Affine rectification
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+For the metric rectification, the user is asked to specify two rectangles
+ (tiles) in clockwise order so that two pairs of orthogonal lines can be
+ derived from them to fit the dual conic 
+\begin_inset Formula $C_{\infty}^{*}$
+\end_inset
+
+, and hence get the metric rectification by getting the appropriate corrective
+ homography H.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename /Users/Anant/Desktop/CSL840/pasted1.png
+	display false
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+After Metric Rectification
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Part
+Camera Calibration techniques
+\end_layout
+
+\begin_layout Section
+Introduction to Camera Calibration
+\end_layout
+
+\begin_layout Standard
+Camera calibration is the process of finding the true parameters of the
+ camera that produced a given photograph or video.
+ Usually, the camera parameters are represented in a 3 × 4 matrix called
+ the camera matrix.
+ It is convenient to break down the camera matrix into two sets of parameters:
+ external and internal, i.e.
+ 
+\begin_inset Formula $\mathbf{P_{E}=C[R|t]}$
+\end_inset
+
+ where 
+\begin_inset Formula $\mathbf{C}$
+\end_inset
+
+ is the matrix of camera internals and 
+\series bold
+
+\begin_inset Formula $\mathbf{[R|t]}$
+\end_inset
+
+ 
+\series default
+is the matrix of camera externals.
+ 
+\end_layout
+
+\begin_layout Section
+Calibration using three planes by finding C from image of absolute conic.
+\end_layout
+
+\begin_layout Standard
+The image of three squares on three different planes (not necessarily orthogonal
+) are sufficient to give calibration.
+ Consider the following steps:
+\end_layout
+
+\begin_layout Enumerate
+For each square compute the homography 
+\series bold
+H
+\series default
+ that maps its corner points to their imaged points.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Compute the imaged circular points for the plane of that square as 
+\begin_inset Formula $\mathbf{H}(1\mathbf{,}\pm i,0)^{T}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Fit a conic 
+\begin_inset Formula $\omega$
+\end_inset
+
+ through the six imaged points.
+ Note that five points are sufficient to define a conic.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Compute 
+\begin_inset Formula $\mathbf{C}$
+\end_inset
+
+ from 
+\begin_inset Formula $\omega=(\mathbf{CC^{T}})^{-1}$
+\end_inset
+
+ using Cholesky decomposition.
+\end_layout
+
+\begin_layout Standard
+A simple MATLAB code gave the following camera internals for the image in
+ figure 4
+\begin_inset Formula \[
+\mathbf{C=\left[\begin{array}{ccc}
+\mathbf{3109.7} & \mathbf{100.2} & 0.3\\
+0 & 3169.0 & 0.2\\
+0 & 0 & 1.0\end{array}\right]}\]
+
+\end_inset
+
+ 
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename assignments/calibrateUsing3Planes/n1.JPG
+	display false
+	scale 20
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Image used for camera calibration
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Zhang's calibration
+\end_layout
+
+\begin_layout Standard
+Zhang's calibration is the method implemented in OpenCV's cameracalibrate2
+ routine.
+ The theory for this method was covered in class and can be found in lecture
+ notes on the course webpage 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-4"
+
+\end_inset
+
+.
+ The resulting camera intrinsics for the object used in Figure 5 were found
+ to be 
+\begin_inset Formula \[
+\mathbf{C}=\left[\begin{array}{ccc}
+\mathbf{1764.3} & \mathbf{0.819} & 0.509\\
+0 & 1766.1 & 627.96\\
+0 & 0 & 1.0\end{array}\right]\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which look reasonable.
+ The camera distortion parameters are found as well.
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename assignments/calibrateUsingZhang/calibrate/build/Debug/calibration/IMG_0191.jpg
+	display false
+	scale 10
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Image used for Zhang's calibration
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Part
+Project: Geotagging web images using (pre-computed) sparse point cloud models
+ of landmarks.
+\end_layout
+
+\begin_layout Section
+Problem Introduction
+\end_layout
+
+\begin_layout Standard
+Geo-tagging is a fast-emerging trend in digital photography and community
+ photo sharing.
+ The presence of geographically relevant metadata with images and videos
+ has opened up interesting research avenues within the multimedia and computer
+ vision domains.
+ The idea of the project is to take an image and the name of the landmark
+ visible in the image, and output the geotag for the image, where geotag
+ is the tuple 
+\begin_inset Formula $\{latitude,longitude,accuracy\}$
+\end_inset
+
+.
+ A related work 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-11"
+
+\end_inset
+
+ by Roberto Cipolla et al.
+ was reviewed by us.
+ Their approach is based on an LVSM done on visual vocabulary constructed
+ using SIFT features.
+ Our work attempts to use the the bundler tool
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-12"
+
+\end_inset
+
+ made available by Noah Snavely to the public domain to get a sparse point
+ reconstruction of the landmark, thereby getting the camera centres for
+ all the images.
+ The approach is explained in the next section.
+\end_layout
+
+\begin_layout Section
+Pipeline and algorithms
+\end_layout
+
+\begin_layout Standard
+Figure 7 outlines the pipeline used.
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename /Users/Anant/Desktop/CSL840/pasted4.pdf
+	display false
+	scale 60
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Pipeline for geotagging
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The first step of the pipeline is to construct the 3-D model of the landmark
+ if not already present in the database.
+ The process for this sparse point 3-D model construction is as follows:
+ First download a first few images from google images.
+ This number is determined by the number of images the bundler can process
+ in a reasonable amount of time.
+ In our tests, this number was taken to be of the order of 100.
+ The next step is to run the bundler on this set of images.
+ The following steps summarize the bundler: 
+\end_layout
+
+\begin_layout Enumerate
+Extract EXIF tags to read the focal length (additionally, store the geotags
+ too if available.)
+\end_layout
+
+\begin_layout Enumerate
+Convert to grayscale .pgm and extract SIFT features.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Use ANN Library to match the SIFT features.
+ 
+\end_layout
+
+\begin_layout Enumerate
+RANSAC-based robust estimation of fundamental matrix depending of availability
+ of focal length for verification.
+ 
+\end_layout
+
+\begin_layout Enumerate
+In our model, we assume that Google has taken care of the methods employed
+ for selecting the best bucket to be sent in the bundler for building Rome
+ in a day, namely:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Vocab tree based whole image similarity.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Query expansion methods.
+\end_layout
+
+\end_deeper
+\begin_layout Standard
+The output of the bundler gives us the camera centres of all the images
+ fed into the bundler.
+ This 3D model consists of some geotagged images.
+ Hence, all images in this 3D model are geotagged now, since camera centres
+ for all images are known.
+ The last step is to geotag an image, given the hence constructed 3-D model.
+ The following steps outline the procedure:
+\end_layout
+
+\begin_layout Enumerate
+Step 1: Extract images which represent novel views of this data (organize
+ images into a tree structure ?) and Find the nearest set of matches from
+ these images to the input image.
+\end_layout
+
+\begin_layout Enumerate
+Step 2: Use this (geotagged) set to generate R and t for the new image,
+ and hence the geotag.
+\end_layout
+
+\begin_layout Standard
+This completes the description of the pipeline.
+ The results are described in the next section.
+\end_layout
+
+\begin_layout Section
+Results
+\end_layout
+
+\begin_layout Standard
+3-D reconstructions were done for India Gate situated in New Delhi.
+ Top 150 image search results were collected both from Flickr and Google,
+ but the bundler practically failed on Flickr images, owing to a considerable
+ number of wrongly tagged images.
+ Two artificial datasets were also constructed: of the Bharti building and
+ Multi Storey (MS) building of IIT Delhi.
+ Some representational images of the three datasets are given in Figure
+ 7.
+ The output of bundler for India Gatem Bharti and MS is shown in Figures
+ 8, 9 and 10 respectively.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/ig.jpg
+	display false
+	scale 30
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/bhartij.jpg
+	display false
+	scale 25
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/msj.jpg
+	display false
+	scale 25
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Datasets used for the evaluation of the algorithm: IndiaGate, Bharti and
+ MS
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/results-ig-1.jpg
+	display false
+	scale 25
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/results-ig-2.jpg
+	display false
+	scale 25
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Bundler output for Indiagate dataset
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/1j.jpg
+	display false
+	scale 25
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/2j.jpg
+	display false
+	scale 25
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Bundler output for Bharti dataset
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/3j.jpg
+	display false
+	scale 25
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/4j.jpg
+	display false
+	scale 25
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Bundler output for MS dataset
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The inaccuracy of giving a new geotag is less than 1 m, which is far better
+ than that available on commercial high-end cameras and mobile phones.
+ (5-10 m)
+\end_layout
+
+\begin_layout Standard
+Figure 11 shows the tags for a few untagged photographs after geotagging
+ is completed using the bundler output.
+ Note that the least count of the geotag, i.e.
+ of 
+\begin_inset Formula $(latitude,longitude)$
+\end_inset
+
+ pair results in apparently grid like appearance of the tags.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename im/bhartiWithTags.jpg
+	display false
+	scale 25
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Geotags for untagged images near Bharti
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Conclusions:
+\end_layout
+
+\begin_layout Standard
+The approach to geotag images by making use of a sparse point cloud model
+ of landmarks is unique.
+ The problem deserves further exploration and rigorous experimentation and
+ implementation to create a robust service for geotagging images, which
+ can be further deployed in multiple applications - most importantly, in
+ creating Virual Reality models of cities.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-1"
+
+\end_inset
+
+ A.
+ Criminisi, I.
+ Reid, and A.
+ Zisserman.
+ Single view metrology.
+ IJCV, 40(2):123–148, 2000.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-3"
+
+\end_inset
+
+R.
+ Hartley and A.
+ Zisserman.
+ Multiple View Geometry in Computer Vision.
+ Cambridge University Press, 2000.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-4"
+
+\end_inset
+
+ Subhasis Banerjee.
+ Projective geometry, camera models and calibration, 
+\family typewriter
+http://www.cse.iitd.ac.in/~suban/vision/geometry/geometry.html
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-11"
+
+\end_inset
+
+Junqiu Wang, Student Member, IEEE, Hongbin Zha, and Roberto Cipolla, Member,
+ IEEE.
+ Coarse-to-Fine Vision-Based Localization by Indexing Scale-Invariant Features
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-12"
+
+\end_inset
+
+Noah Snavely, Bundler: Structure from Motion (SfM) for Unordered Image Collectio
+ns.
+
+\family typewriter
+ http://phototour.cs.washington.edu/bundler/
+\family default
+
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Part
+Solutions to exams:
+\end_layout
+
+\begin_layout Subsection*
+Minor-1 Report
+\end_layout
+
+\begin_layout Subsubsection*
+CSL840
+\end_layout
+
+\begin_layout Paragraph
+Submitted by: Anant Jain, 2008EE10330
+\end_layout
+
+\begin_layout Paragraph
+Degree of Originality:
+\end_layout
+
+\begin_layout Standard
+This is to ascertain that this assignment has been done solitarily by me,
+ and no discussions contributed to this assignment.
+\end_layout
+
+\begin_layout Enumerate
+Explanations:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+A potrait can be considered to be a two dimensional image of a 3 dimensional
+ object.
+ Since the image of this two dimensional image on a flat canvas would look
+ the same from every angle (modulo some affine stretching,) an image of
+ a potrait looking straight outwards would be perceived to be looking straight
+ outwards towards the viewer from every angle.
+ Thus, a potrait's eyes seem to follow the subject around the room.
+\end_layout
+
+\begin_layout Enumerate
+Infinitely distant objects lie on the plane at infinity, 
+\begin_inset Formula $\pi_{\infty}$
+\end_inset
+
+ .
+ A point on this plane can be represented as 
+\series bold
+
+\begin_inset Formula $(d^{T},0)$
+\end_inset
+
+
+\series default
+.
+ Let the image of such a point be x.
+ Thus x is given as: 
+\begin_inset Formula \[
+x=P(d^{T},0)=CR[I|t](d^{T},0)=CRd\]
+
+\end_inset
+
+ Thus, the planar homography between 
+\begin_inset Formula $\pi_{\infty}$
+\end_inset
+
+ and the image plane doesn't involve the translation term, t.
+ Hence, images of “infinitely” distant objects like stars and the moon stay
+ fixed on your retina as you translate, but change with rotation.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+Mathematics Building question:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Single-view analysis:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+
+\series bold
+Affine measurements on any one of the faces of the 'Mathematics' building.
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Considering the frontal face of the mathematics building a planar surface
+ is a reasonable assumption.
+ An affine correction of this plane shall require estimation of its line
+ at infinity.
+ This line at infinity is obtained as the line joining (minimum) two vanishing
+ points of any two (or more, for robust computations) parallel lines on
+ this plane.
+ If the imaged line at inifinity is 
+\begin_inset Formula $\mathbf{l=}(l_{1},l_{2},l_{3})^{T}$
+\end_inset
+
+, then provided 
+\begin_inset Formula $l_{3}\neq0,$
+\end_inset
+
+ a suitable projective transformation that maps 
+\series bold
+l
+\series default
+ back to 
+\series bold
+
+\begin_inset Formula $\mathbf{l_{\infty}}$
+\end_inset
+
+
+\series default
+ is given by:
+\begin_inset Formula \[
+\mathbf{H=\left[\begin{array}{ccccc}
+\mathbf{1} & 0 & 0\\
+0 & 1 & 0\\
+l_{1} & l_{2} & l_{3}\end{array}\right]}H\]
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Euclidean measurements on any one of the faces of the ‘Mathematics’ building.
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+There are two methods for doing metric correction of a plane.
+ 
+\series bold
+First method:
+\series default
+ start with the Affine correction done in part (i).
+ The Euclidean correction would need specification of a measurement in any
+ two non-parallel directions on the plane of the mathematics building as
+ well as measurement of the angle between any two (non-parallel) directions.
+ Essentially, we are using the idea of decomposition of a projective transformat
+ion into a series of Euclidean, Affine and Projective transformations, wherein,
+ after affine correction, the effect of the last Projective has been removed,
+ and we need to find 
+\begin_inset Formula $\mathbf{H_{A}^{\mathbf{-1}}}=$
+\end_inset
+
+ 
+\begin_inset Formula $\left[\begin{array}{cc}
+\mathbf{B} & \mathbf{0}\\
+\mathbf{0^{T}} & 1\end{array}\right]^{-1}$
+\end_inset
+
+where, 
+\series bold
+B 
+\series default
+is an upper triangular matrix (3x3) normalized as 
+\begin_inset Formula $det(\mathbf{B})=1$
+\end_inset
+
+.
+ 
+\series bold
+Second method: 
+\series default
+can be the same as the method of metric rectification given by Hartley and
+ Zisserman via the estimation of the dual conic (and discussed in Q5) This
+ method requires specification of (atleast) five pairs of perpendicular
+ set of lines on the plane.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Ratio of the heights of the ‘Workshop’ and the ‘Mathematics’ buildings.
+
+\series default
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+This one is answered on the basis of section 2.2: Measurements on parallel
+ planes of 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-10"
+
+\end_inset
+
+.
+ We can compare measurements made on two separate planes by mapping between
+ the planes in the reference direction via the homology.
+ A map in the world between parallel planes induces a map in the image between
+ images of points on the two planes.
+ This image map is a planar homology, which is a plane projective transformation
+ with five degrees of freedom, having a line of fixed points, called the
+ axis and a distinct fixed point not on the axis known as the vertex.
+ Planar homologies arise naturally in an image when two planes related by
+ a perspectivity in 3-space are imaged.
+ In particular we may compute (i) the ratio between two parallel lengths,
+ one length on each plane; (ii) the ratio between two areas, one area on
+ each plane.
+ In fact we can simply transfer all points from one plane to the reference
+ plane using the homology and then, since the reference plane’s vanishing
+ line is known, make affine measurements in the plane, e.g.
+ parallel length or area ratios.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+The absolute location and height of the ‘Workshop’ building in Euclidean
+ terms.
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Refer to section 2.1: Measurements between parallel planes of 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-10"
+
+\end_inset
+
+.
+ Figure 1 below shows the two parallel planes (the faces of Mathematics
+ and workshop buildings) and a set of lines joining the two planes, and
+ perpendicular to them, alongwith their vanishing point.
+ 
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename CV Minor 1 Pics/math1.jpg
+	display false
+	scale 40
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Measuring distance between Maths department and workshop
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+The method outlined there is reproduced here : Consider figure 2.
+ We wish to measure the distance between two parallel planes, specified
+ by the image points and, in the reference direction.
+ Figure 2 shows the geometry, with points and in correspondence.
+ The four points marked on the figure define a cross-ratio.
+ The vanishing point is the image of a point at infinity in the scene.
+ In the image the value of the cross-ratio provides an affine length ratio.
+ In fact we obtain the ratio of the distance between the planes containing
+ and, to the camera’s distance from the plane (or depending on the ordering
+ of the cross-ratio).
+ The absolute distance can be obtained from this distance ratio once the
+ camera’s distance from is specified.
+ However it is usually more practical to determine the distance via a second
+ measurement in the image, that of a known reference length.
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename /Users/Anant/Desktop/CSL840/pasted1.pdf
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Figure 2 from 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-10"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+The absolute height of the workshop is determined from height of mathematics
+ building found in part (ii) and the ratio of the heights of the two buildings
+ found in part (iii).
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+The camera internal calibration matrix K.
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+As discussed in the class (and the notes,) all we need to specify for the
+ internal calibration matrix are the vanishing line and one vanishing point
+ in a direction not lying on the plane.
+ These can be found easily in the same way as done in Figure 1 for one axis.
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Estimation of zoom factor:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Once an Euclidean construction has been done for both the images (a) and
+ (b), we know easily find out the number of pixels spanning the same real
+ length (say height of maths department.) The zoom factor can be estimated
+ by the ratio of this quantity for the two cases.
+ 
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Estimation of rotation axis and rotation angle:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Consider two images of a scene obtained by the same camera from different
+ position and orientation.
+ The images of the points at infinity, the vanishing points, are not affected
+ by the camera translation, but are affected only by the camera rotation
+ 
+\begin_inset Formula $R$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Consider a scene line with vanishing point 
+\begin_inset Formula $v$
+\end_inset
+
+ in the first view and 
+\begin_inset Formula $v'$
+\end_inset
+
+ in the second.
+ The vanishing point 
+\begin_inset Formula $v$
+\end_inset
+
+ has a direction 
+\begin_inset Formula $d$
+\end_inset
+
+ in the first cameras Euclidean frame, and, similarly, the vanishing point
+ 
+\begin_inset Formula $v'$
+\end_inset
+
+ has a direction 
+\begin_inset Formula $d'$
+\end_inset
+
+ in the second cameras Euclidean frame.
+ We have
+\begin_inset Formula \[
+d=C^{-1}v/||C^{-1}v||\]
+
+\end_inset
+
+
+\begin_inset Formula \[
+d'=C^{-1}v'/||C^{-1}v'||\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+The directions are related by 
+\begin_inset Formula $d=Rd'$
+\end_inset
+
+ which represents two independent constraints on 
+\begin_inset Formula $R$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Hence, the rotation matrix can be computed from two such corresponding direction
+s provided we know 
+\begin_inset Formula $C$
+\end_inset
+
+.
+ This rotation matrix gives the rotation angle.
+\end_layout
+
+\begin_layout Enumerate
+We already know that the rotation axis has to pass through the camera centre
+ (already available from last column of P.) The direction of rotation axis
+ is the same as the direction whose vanishing point doesn't change.
+ 
+\end_layout
+
+\begin_layout Enumerate
+A transformation to interpolate an in-between image between the two in terms
+ of a rotation angle φ from the first image.
+ If 
+\begin_inset Formula $K$
+\end_inset
+
+, the camera calibration matrix is written as 
+\begin_inset Formula $C[R|t],$
+\end_inset
+
+ then for the rotation angle φ we can find a rotation matrix 
+\begin_inset Formula $R'$
+\end_inset
+
+ such that 
+\begin_inset Formula $RR'=R''$
+\end_inset
+
+.
+ Thus 
+\begin_inset Formula $C[R"|t]K^{-1}$
+\end_inset
+
+ serves as the transformation from the first image.
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Decomposition of projective transformation:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Start with product:
+\begin_inset Formula \[
+\mathbf{H_{E}H_{A}H_{P}}=\left[\begin{array}{cc}
+s\mathbf{R} & \mathbf{t}\\
+\mathbf{0}^{\mathbf{T}} & 1\end{array}\right]\left[\begin{array}{cc}
+\mathbf{B} & \mathbf{0}\\
+\mathbf{0^{T}} & 1\end{array}\right]\left[\begin{array}{cc}
+\mathbf{I} & \mathbf{0}\\
+\mathbf{v^{T}} & v\end{array}\right]=\left[\begin{array}{cc}
+s\mathbf{RB} & \mathbf{t}\\
+\mathbf{0}^{\mathbf{T}} & 1\end{array}\right]\left[\begin{array}{cc}
+\mathbf{I} & \mathbf{0}\\
+\mathbf{v}^{\mathbf{T}} & v\end{array}\right]\]
+
+\end_inset
+
+
+\begin_inset Formula \[
+=\left[\begin{array}{cc}
+s\mathbf{RB+tv^{T}} & \mathbf{tv}\\
+\mathbf{v^{T}} & v\end{array}\right]=\left[\begin{array}{cc}
+\mathbf{A} & \mathbf{tv}\\
+\mathbf{v^{T}} & v\end{array}\right]=\mathbf{H}\]
+
+\end_inset
+
+Thus, 
+\begin_inset Formula $\mathbf{A=}s\mathbf{RB+tv^{T}}$
+\end_inset
+
+.
+ If B is an upper triangular matrix, with det(B) = 1, 
+\series bold
+
+\begin_inset Formula $\mathbf{H_{A}}$
+\end_inset
+
+ 
+\series default
+is an affine transformation.
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+
+\series bold
+\begin_inset Formula $\mathbf{H_{P}}$
+\end_inset
+
+ 
+\series default
+has 2 dof (last row has three elements, but we are concerned upto a scale
+ only, hence only 2 dofs) and moves the line at infinity in the image, since
+ the 2x2 submatrix is an Identity matrix.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+\begin_inset Formula $\mathbf{H_{A}}$
+\end_inset
+
+ 
+\series default
+has 2 dof and affects affine properties, but can't affect line at infinity
+ since the last row is 
+\begin_inset Formula $(\mathbf{0^{T}1)}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset Formula $\mathbf{H_{E}}$
+\end_inset
+
+ has 4 dof and is a general similarity transformation which doesn't affect
+ affine (again, since last row is 
+\begin_inset Formula $(\mathbf{0^{T}1)}$
+\end_inset
+
+) or projective properties.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+Reverse order of decomposition:
+\begin_inset Formula \[
+\mathbf{H_{P}H_{A}H_{E}}=\left[\begin{array}{cc}
+\mathbf{I} & \mathbf{0}\\
+\mathbf{v^{T}} & v\end{array}\right]\left[\begin{array}{cc}
+\mathbf{B} & \mathbf{0}\\
+\mathbf{0^{T}} & 1\end{array}\right]\left[\begin{array}{cc}
+s\mathbf{R} & \mathbf{t}\\
+\mathbf{0}^{\mathbf{T}} & 1\end{array}\right]=\left[\begin{array}{cc}
+\mathbf{I} & \mathbf{0}\\
+\mathbf{v}^{\mathbf{T}} & v\end{array}\right]\left[\begin{array}{cc}
+s\mathbf{RB} & \mathbf{Bt}\\
+\mathbf{0}^{\mathbf{T}} & 1\end{array}\right]\]
+
+\end_inset
+
+
+\begin_inset Formula \[
+=\left[\begin{array}{cc}
+s\mathbf{RB} & \mathbf{Bt}\\
+\mathbf{v^{T}s\mathbf{RB}} & \mathbf{v^{T}Bt+}v\end{array}\right]=\left[\begin{array}{cc}
+\mathbf{A-tv^{T}} & \mathbf{Bt}\\
+\mathbf{\mathbf{v^{T}s\mathbf{RB}}} & \mathbf{v^{T}Bt+}v\end{array}\right]=\mathbf{H}\]
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Show that given two intervals on an imaged line with known length ratios
+ the vanishing point of the line can be determined.
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+The method for the same was read by me in 
+\shape italic
+Multiple view geometry in computer vision by Hartley and Zisserman
+\shape default
+, page 51, before attempting this paper, and is re-produced below:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Given three points a', b', c' in the image, measure the ratio distance ratio
+ in the image, d(a',b'):d(b',c') = p':q'
+\end_layout
+
+\begin_layout Enumerate
+Let the measured (Euclidean) distance ratio of the corresponding world points
+ a,b,c be p:q
+\end_layout
+
+\begin_layout Enumerate
+These set of points (a,b,c) may be represented as 
+\begin_inset Formula $(0,1)^{T},(p,1)^{T},(p+q,1)^{T}$
+\end_inset
+
+ in 1-D projective coordinates.
+ The similar representation for 1-D image points (a',b',c') is 
+\begin_inset Formula $(0,1)^{T},(p',1)^{T},(p'+q',1)^{T}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Compute a 1-D homography 
+\begin_inset Formula $\mathbf{H_{2x2}}$
+\end_inset
+
+ from world points (a,b,c) to image points (a',b',c'), and the image of
+ 
+\begin_inset Formula $(1,0)^{T}$
+\end_inset
+
+ under this homography gives the vanishing point of the line containing
+ a',b',c'.
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Enumerate
+Solutions:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+
+\series bold
+Show that the constraint specified by (iv) can be deduced from (i), (ii)
+ and (iii).
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+The horizontal lines in (i) and (iii) give the horizontal axis' vanishing
+ point.
+ The vertical lines in (i) and (ii) give the vertical axis vanishing point.
+ Also, as can be seen visually, the choice of the the new constraint (iv)
+ uses the same orthogonal relationship of the horizontal and vertical axis.
+ Thus (iv) can be deduced from (i), (ii) and (iii).
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Can constraint (v) also be deduced from (i), (ii) and (iii)? If not, what
+ extra information does it provide? 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+No, the constraint (v) cannot be deduced from (i), (ii) and (iii).
+ It provides the orthogonality constraint in a different axis pair, though
+ on the same plane.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+A student from a previous batch stacked up the five constraints in a 5 ×
+ 6 matrix for conic fitting (see [3] - page 9).
+ He claimed that the matrix is of rank 5.
+ Is this possible in view of the fact that one or more of the constraints
+ can be deduced from the others? Did he do some gadbadi? 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+No, he didn't do any
+\begin_inset Formula $gadbadi.$
+\end_inset
+
+ The rank of the matrix is still 5 due to the fact that the derivation of
+ constraint (iv) from constraints (i), (ii) and (iii) was dependent on the
+ fact that we started with the knowledge that we were working in the same
+ plane.
+ This need not be true for a general case, and hence constraint (iv) also
+ contributes to the rank of the matrix.
+ Hence its rank was 5.
+ 
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+He also claimed that not only can he fit the conic, but his metric rectification
+ was also perfect.
+ What do you think might be happening?
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+A perfect metric rectification is coherent with matrix's rank being 5, since
+ the conic is unique upto a scale, and hence one parameter f can be set
+ to 1 - i.e.
+ there are only 5 independent parameters.
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Enumerate
+Solutions:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+
+\series bold
+Why do they minimize the Mahalanobis distance? 
+\series default
+Criminisi et al.
+ carry out an uncertainty analysis using Mahalanobis distance for robust
+ estimation of parameters 
+\series bold
+b 
+\series default
+and 
+\series bold
+t.
+
+\series default
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+The Mahalanobis distance differs from Euclidean distance in that it takes
+ into account the correlations of the data set and is scale-invariant.
+ 
+\end_layout
+
+\begin_layout Enumerate
+It is based on correlations between variables by which different patterns
+ can be identified and analyzed.
+ It is a useful way of determining similarity of an unknown sample set to
+ a known one.
+\end_layout
+
+\begin_layout Enumerate
+Since 
+\series bold
+t
+\series default
+ and 
+\series bold
+b 
+\series default
+are are specified alongwith an uncertanity ellipse, we wish to fit the line
+ through them such that it passes through the vertical vanishing point.
+ At the same time, we need to have a metric which is invariant to scale
+ and arbitrary rotations - hence the use of 
+\begin_inset Formula $Mahalanobis$
+\end_inset
+
+ distance.
+ A similar analysis for various computations in Q2 can also be done.
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Enumerate
+Solutions:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+
+\series bold
+Are the two methods equivalent? Comment of how they may be different.
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+The eight point method registers two planes.
+ One of the registered planes can be used to derive the vanishing line of
+ the plane.
+ Subsequently, the other plane gives the a vanishing point in a direction
+ away from the plane.
+ Thus, registering two planes by the eight point method allows us to (indirectly
+) specify the two requirements of 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-10"
+
+\end_inset
+
+, namely, (i) the vanishing line of a plane and (ii) the vanishing point
+ of a direction away from the plane.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Does the eight point method in [2] provide any extra information?
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+The extra degrees of freedom obtained as a result of independent registration
+ of the two planes give us constraints on:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+translation of the planes along the coordinate axes, and
+\end_layout
+
+\begin_layout Enumerate
+rotation of the coordinate system of one plane with respect to the other
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+Clearly, these extra constraints are not necessarily required for camera
+ calibration.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Show that basic methods of probing length ratios along a reference direction
+ used in the two methods are essentially the same.
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Once the camera center coordinates have been determined, in either affine
+ or Euclidean terms, the coordinates of 3D points in the scene can be computed
+ using simple geometry.
+ The user clicks a point (call it the head) and its projection on the X-Z
+ plane (call it the foot) in the image along the X Y direction, for example
+ the head and the foot of a person (see Figure 3).
+ Now using the homography 
+\begin_inset Formula $\mathbf{H^{-1}}$
+\end_inset
+
+ (from the image plane to the X-Z horizontal plane) we can transfer the
+ head and the foot of the point on to the horizontal (X -Z plane).
+ We can then use simple similar triangles to calculate the height (Y coordinate)
+ of the point.
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename /Users/Anant/Desktop/CSL840/pasted3.pdf
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Determining the height
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+On the other hand, the basic method of probing lengths along a reference
+ direction - Section 2.1: Measurement between parallel planes of 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-10"
+
+\end_inset
+
+ uses the same concept of similar triangles as discussed in Question 1.iv
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Standard
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection*
+CSL840 Major Report
+\end_layout
+
+\begin_layout Subsubsection*
+\noindent
+May 8, 2011
+\end_layout
+
+\begin_layout Paragraph
+Submitted by: Anant Jain, 2008EE10330
+\end_layout
+
+\begin_layout Paragraph
+Degree of Originality:
+\end_layout
+
+\begin_layout Standard
+This is to ascertain that this assignment has been done solitarily by me,
+ and no discussions contributed to this assignment.
+ The papers read beforehand have been cited at appropriate places.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Viola-Jones method of face detection
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Explain how the Adaboost algorithm has been used for this problem.
+ Why does it work ?
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+AdaBoost is adaptive in the sense that subsequent classifiers built are
+ tweaked in favor of those instances misclassified by previous classifiers.
+ AdaBoost calls a weak classifier repeatedly in a series of rounds 
+\begin_inset Formula $t=1,\ldots,T$
+\end_inset
+
+ from a total T classifiers.
+ For each call a distribution of weights 
+\begin_inset Formula $D_{t}$
+\end_inset
+
+ is updated that indicates the importance of examples in the data set for
+ the classification.
+ On each round, the weights of each incorrectly classified example are increased
+ (or alternatively, the weights of each correctly classified example are
+ decreased), so that the new classifier focuses more on those examples.
+ Drawing an analogy between weak classifiers and features, AdaBoost is an
+ effective procedure for searching out a small number of good “features”
+ which nevertheless have significant variety.
+\end_layout
+
+\begin_layout Enumerate
+There are 160,000 rectangle features associated with each image sub-window
+ as described in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-3-1"
+
+\end_inset
+
+, a number far larger than the number of pixels.
+ The hypothesis is that a very small number of these features can be combined
+ to form an effective classifier.
+ In order for the weak learner to be boosted, it is called upon to solve
+ a sequence of learning problems.
+ After the first round of learning, the examples are re-weighted in order
+ to emphasize those which were incorrectly classified by the previous weak
+ classifier.
+ The final strong classifier takes the form of a perceptron, a weighted
+ combination of weak classifiers followed by a threshold.
+ The training error of the strong classifier approaches zero exponentially
+ in the number of rounds.
+\end_layout
+
+\begin_layout Enumerate
+The key advantage of AdaBoost as a feature selection mechanism, is the speed
+ of learning.
+ In each round the entire dependence on previously selected features is
+ efficiently and compactly encoded using the example weights.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+What is the role of the attentional cascade?
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+The key idea of an attentional cascade is that smaller, and therefore more
+ efficient, boosted classifiers can be constructed which reject many of
+ the negative sub-windows while detecting almost all positive instances.
+ Simpler classifiers are used to reject the majority of sub-windows before
+ more complex classifiers are called upon to achieve low false positive
+ rates.
+ The initial Adaboost threshold is modified so as to have classifiers adjusted
+ to detect 100% of the faces with a false positive rate of 50%.
+ These classifiers are put in a cascade, wherein a negative result from
+ any stage leads to immediate rejection of the sub-window.
+ 
+\end_layout
+
+\begin_layout Enumerate
+The key advantage of an attentional cascade is the dramatic speed-up of
+ the detector by focusing attention on promising regions of the image.
+ More complex processing is reserved only for these promising regions.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+Suppose that you have to use this method for detection and tracking of faces
+ in a surveillance video.
+ How would you integrate a tracker with this scheme to ensure temporal consisten
+cy?
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Tracking involves prediction and update for which filters like Kalman filter
+ have been used.
+ Tracking approaches can also be model-based, (for example, using statistical
+ models), or exemplar-based.
+ One tracker disucssed in class was the Kanade-Lucas Tracker, and in general
+ various approaches for tracking features are available.
+ Thus, we can assume that we have a good tracker available to us alongwith
+ the Viola-Jones face detector.
+\end_layout
+
+\begin_layout Enumerate
+We can use the face detector to initialize the tracker - i.e.
+ as seen above, upon successful determination of a face in a video frame,
+ we automatically get a set of (reliable, good) face features which can
+ serve as the initialization for the tracker.
+ To make the tracker even more robust, the face detector can keep processing
+ frames alongside, and the detection information can be integrated at each
+ time step as the tracker parameters are being propagated, that is, the
+ probabilities are accumulated over time.
+ This would cause the algorithm to continuously detect faces even in frames
+ where the frame-based face detector would fail.
+ The detection information provides knowledge of the appearance of new faces
+ to the temporal framework, which can be readily incorporated whenever they
+ appear by a process of updating.
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Graph-cut formulations: 
+\series default
+In this question, we arrive at an energy function for both the cases, minimizati
+on of which can be done by regular graph cut methods like 
+\begin_inset Formula $\alpha-expansions$
+\end_inset
+
+ to arrive at a local minimum in the strong sense.
+ Vladimir Kolmogorov and Ramin Zabih give methods to solve the Energy functions
+ described below in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-1-1"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-2"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+
+\series bold
+Give a graph-cut formulation for 3D reconstruction from two calibrated images.
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Given two calibrated images, say 
+\begin_inset Formula $L$
+\end_inset
+
+ and 
+\begin_inset Formula $R$
+\end_inset
+
+, consider a pixel 
+\begin_inset Formula $p\epsilon L$
+\end_inset
+
+.
+ The epipolar plane through this pixel 
+\begin_inset Formula $p$
+\end_inset
+
+ containing the epipole 
+\begin_inset Formula $e_{L}$
+\end_inset
+
+ of 
+\begin_inset Formula $L$
+\end_inset
+
+ define a corresponding epipolar line in 
+\begin_inset Formula $R$
+\end_inset
+
+, which gives the candidate points 
+\begin_inset Formula $q$
+\end_inset
+
+ for correspondence in 
+\begin_inset Formula $R$
+\end_inset
+
+.
+ Thus, there is a finite set 
+\begin_inset Formula $A=\{<p,q>\}$
+\end_inset
+
+ of potentially corresponding pixels.
+ The idea is to find a subset of this set 
+\begin_inset Formula $A$
+\end_inset
+
+ containing only pairs of pixels which correspond to each other.
+ Equivalently, we want to give each assignment 
+\begin_inset Formula $a\epsilon A$
+\end_inset
+
+ a value 
+\begin_inset Formula $f_{a}$
+\end_inset
+
+ which is 1 if the pixels p and q correspond, and otherwise 0.
+ It is clear that having such a subset is enough to have a 3D reconstruction
+ of the scene, provided the cameras are calibrated as given in the question.
+ The appropriate label for the 3D voxel in the set can be obtained by back
+ projecting 3D rays corresponding to these pixels, and finding their intersectio
+n.
+\end_layout
+
+\begin_layout Enumerate
+As done in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-1-1"
+
+\end_inset
+
+, we will call the assignments in 
+\begin_inset Formula $A$
+\end_inset
+
+ that have the value 1 active.
+ Let 
+\begin_inset Formula $A(f)$
+\end_inset
+
+ be the set of active assignments according to the configuration
+\begin_inset Formula $f$
+\end_inset
+
+.
+ Let 
+\begin_inset Formula $N_{p}(f)$
+\end_inset
+
+ be the set of active assignments in 
+\begin_inset Formula $f$
+\end_inset
+
+ that involve the pixel 
+\begin_inset Formula $p$
+\end_inset
+
+, i.e.
+ 
+\begin_inset Formula $N_{p}(f)=\{<p,q>\epsilon A(f)$
+\end_inset
+
+.
+ We will call a configuration 
+\begin_inset Formula $f$
+\end_inset
+
+ unique if each pixel is involved in at most one active assignment, i.e.
+ 
+\begin_inset Formula $\forall p\epsilon P,|N_{p}(f)|\leq1$
+\end_inset
+
+, where 
+\begin_inset Formula $P=L\bigcup R$
+\end_inset
+
+, the set of all pixels in two images put together.
+ Note that those pixels for which
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\noun off
+\color none
+ 
+\begin_inset Formula $|N_{p}(f)|=0$
+\end_inset
+
+
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\noun default
+\color inherit
+ are precisely the occluded pixels.
+\end_layout
+
+\begin_layout Enumerate
+It is possible to extend the notion of 
+\begin_inset Formula $α-expansions$
+\end_inset
+
+ to this representation.
+ For an assignment 
+\begin_inset Formula $a=<p,q>$
+\end_inset
+
+ let 
+\begin_inset Formula $d(a)$
+\end_inset
+
+ be its disparity: 
+\begin_inset Formula $d(a)=(q_{x}-p_{x},q_{y}-p_{y})$
+\end_inset
+
+, and let 
+\begin_inset Formula $A^{\alpha}$
+\end_inset
+
+ be the set of all assignments in 
+\begin_inset Formula $A$
+\end_inset
+
+ having disparity 
+\begin_inset Formula $\alpha$
+\end_inset
+
+.
+ A configuration 
+\begin_inset Formula $f′$
+\end_inset
+
+ is said to be within a single 
+\begin_inset Formula $\alpha-expansion$
+\end_inset
+
+ move of 
+\begin_inset Formula $f$
+\end_inset
+
+ if 
+\begin_inset Formula $A(f′)$
+\end_inset
+
+ is a subset of 
+\begin_inset Formula $A(f)\bigcup A^{\alpha}$
+\end_inset
+
+.
+ In other words, some currently active assignments may be deleted, and some
+ assignments having disparity 
+\begin_inset Formula $α$
+\end_inset
+
+ may be added.
+ Thus all we are left to do is specify an energy function for the problem.
+ 
+\end_layout
+
+\begin_layout Enumerate
+The energy function for a configuration 
+\begin_inset Formula $f$
+\end_inset
+
+ can be given by 
+\begin_inset Formula $E(f)=E_{data}(f)+E_{occ}(f)+E_{smooth}(f)$
+\end_inset
+
+.
+ If 
+\begin_inset Formula $I(p)$
+\end_inset
+
+ denotes the intensity of pixel 
+\begin_inset Formula $p$
+\end_inset
+
+, the three terms are formulated as: 
+\begin_inset Formula \[
+E_{data}(f)=\sum_{a\epsilon A(f)}(I(p)\text{−}I(q))^{2}\]
+
+\end_inset
+
+
+\begin_inset Formula \[
+E_{occ}(f)=\sum_{p\epsilon P}Cp\text{·}T(|Np(f)|=0)\]
+
+\end_inset
+
+
+\begin_inset Formula \[
+E_{smooth}(f)=\sum_{{a1,a2}\epsilon N}V_{a1,a2}\text{·}T(f(a1)\neq f(a2))\]
+
+\end_inset
+
+The occlusion term imposes a penalty 
+\begin_inset Formula $Cp$
+\end_inset
+
+ if the pixel 
+\begin_inset Formula $p$
+\end_inset
+
+ is occluded.
+ The smoothness term imposes a penalty if one assignment is present in the
+ configuration, and another close assignment, having the same disparity,
+ is not.
+ This completes the formulation of the problem for this case.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Give an object space graph-cut formulation for 3D reconstruction from multiple
+ calibrated images.
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+The problem of 3D reconstruction from multiple calibrated images was studied
+ in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-2"
+
+\end_inset
+
+.
+ Suppose we are given n calibrated images of the same scene taken from different
+ viewpoints (or at different moments of time).
+ and let 
+\begin_inset Formula $P_{i}$
+\end_inset
+
+ be the set of pixels in the 
+\begin_inset Formula $image_{i}$
+\end_inset
+
+, and let 
+\begin_inset Formula $P=P_{1}\bigcup P_{2}\ldots\bigcup P_{n}$
+\end_inset
+
+ be the set of all pixels.
+ It can be noted that each pixel 
+\begin_inset Formula $p\epsilon P$
+\end_inset
+
+ corresponds to a 3D ray in space.
+ Their problem formulation goal is to find the depth of the point of the
+ first intersection of a 3D ray with an object in the scene for all pixels
+ in all images.
+ Thus, we want to find a labeling 
+\begin_inset Formula $f:P\rightarrow L$
+\end_inset
+
+ where 
+\begin_inset Formula $L$
+\end_inset
+
+ is a discrete set of labels corresponding to different depths.
+ Thus, our 3-D reconstruction has pairs of the form 
+\begin_inset Formula $<p,l>$
+\end_inset
+
+ where 
+\begin_inset Formula $p\epsilon P$
+\end_inset
+
+ and 
+\begin_inset Formula $l\epsilon L$
+\end_inset
+
+.
+ It is clear again that having such a configuration 
+\begin_inset Formula $f$
+\end_inset
+
+ is equivalent to a formulation of the problem where sites are a set of
+ voxels enclosing the object to be reconstructed and the labels are 0 (indicatin
+g that either the voxel doesn’t belong to the object or is invisible) or
+ 1 (indicating that the voxel is on visible surface boundary of the object)
+\end_layout
+
+\begin_layout Enumerate
+Again, as discussed in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-2"
+
+\end_inset
+
+, an analogue of set 
+\begin_inset Formula $A$
+\end_inset
+
+ in part (a) can be a set 
+\begin_inset Formula $I$
+\end_inset
+
+ consisting of (unordered) pairs of 3D-points 
+\begin_inset Formula $<p_{1},l_{1}>,<p_{2},l_{2}>$
+\end_inset
+
+ “close” to each other in 3D-space.
+ For instance, we can use the constraint that only 3D-points at the same
+ depth can interact, i.e.if 
+\begin_inset Formula $ $
+\end_inset
+
+
+\begin_inset Formula $\{<p_{1},l_{1}>,<p_{2},l_{2}>\}\epsilon I$
+\end_inset
+
+ then 
+\begin_inset Formula $l_{1}=l_{2}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+The energy function for a configuration 
+\begin_inset Formula $f$
+\end_inset
+
+ can again be given by 
+\begin_inset Formula $E(f)=E_{data}(f)+E_{invis}(f)+E_{smooth}(f)$
+\end_inset
+
+, where for some constant K, 
+\begin_inset Formula \[
+E_{data}(f)=\sum_{<p,f(p)>,<q,f(q)>\epsilon I}min{0,(Intensity(p)\text{−}Intensity(q))^{2}\text{−}K}\]
+
+\end_inset
+
+
+\begin_inset Formula \[
+E_{invis}(f)=\sum_{<p,f(p)>,<q,f(q)>\epsilon I_{vis}}\infty\]
+
+\end_inset
+
+
+\begin_inset Formula \[
+E_{smooth}(f)=\sum_{\{p,q\}\epsilon N}V_{{p,q}}(f(p),f(q))\]
+
+\end_inset
+
+where, the set 
+\begin_inset Formula $I_{vis}$
+\end_inset
+
+ satisfies the visibility constraint: if 
+\begin_inset Formula $<p,f(p)>,<q,f(q)>\epsilon I_{vis}$
+\end_inset
+
+, then 
+\begin_inset Formula $l_{1}\neq l_{2}$
+\end_inset
+
+.
+ The visibility constraint says that if a 3D-point 
+\begin_inset Formula $⟨p,l⟩$
+\end_inset
+
+ is present in a configuration 
+\begin_inset Formula $f$
+\end_inset
+
+ (i.e.
+ 
+\begin_inset Formula $l=f(p)$
+\end_inset
+
+) then it “blocks” views from other cameras: if a ray corresponding to a
+ pixel 
+\begin_inset Formula $q$
+\end_inset
+
+ goes through (or close to)
+\begin_inset Formula $⟨p,l⟩$
+\end_inset
+
+ then its depth is at most 
+\begin_inset Formula $l$
+\end_inset
+
+.
+ We will use the set 
+\begin_inset Formula $I$
+\end_inset
+
+ this part of the construction of 
+\begin_inset Formula $I_{vis}$
+\end_inset
+
+.
+ The set 
+\begin_inset Formula $I_{vis}$
+\end_inset
+
+ can then be defined as follows: it will contain all pairs of 3D-points
+ 
+\begin_inset Formula $⟨p,l⟩,⟨q,l′⟩$
+\end_inset
+
+ such that 
+\begin_inset Formula $⟨p,l⟩$
+\end_inset
+
+ and 
+\begin_inset Formula $⟨q,l⟩$
+\end_inset
+
+ interact (i.e.
+ they are in 
+\begin_inset Formula $I$
+\end_inset
+
+) and 
+\begin_inset Formula $l′>l$
+\end_inset
+
+.
+ Also, the smoothness term involves a notion of neighborhood; we assume
+ that there is a neighborhood system on pixels
+\begin_inset Formula \[
+N\subset\{\{p,q\}|p,q\epsilon P\}\]
+
+\end_inset
+
+This can be the usual 4-neighborhood system: pixels 
+\begin_inset Formula $p=(px,py)$
+\end_inset
+
+ and 
+\begin_inset Formula $q=(qx,qy)$
+\end_inset
+
+ are neighbors if they are in the same image and 
+\begin_inset Formula $|px−qx|+|py−qy|=1.$
+\end_inset
+
+ This completes the formulation of the problem in multiple calibrated cameras
+ case.
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Multi-resolution
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Use of a pyramid based multi-resolution strategy for image blending (in
+ mosaicing, for example).
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+An image represented in the usual array of pixel intensities is not suitable
+ for most of the tasks like compression etc.
+ Another natural representation may be by its Fourier transform, with operations
+ applied to the transform coefficients rather than to the original pixel
+ values.
+ But such a representation loses out all the spatial information, and is
+ no good for most of the computer vision tasks.
+ Pyramid based multi-resolution strategy offers, in loose terms, a middle
+ path - it is able to retain spatial localization as well as localization
+ in the spatial—frequency domain by decomposing the image into a set of
+ spatial frequency bandpass component images as described in
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-9"
+
+\end_inset
+
+.
+ Individual samples of a component image represent image pattern information
+ that is appropriately localized, while the bandpassed image as a whole
+ represents information about a particular fineness of detail or scale.
+ The nature of the problem itself demands 
+\end_layout
+
+\begin_layout Enumerate
+Consider, for example, the apple mosaicing example in 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-9"
+
+\end_inset
+
+ discussed in class.
+ The blurred-edge effect in mosiacs is due to a mismatch of low frequencies
+ along the mosaic boundary, while the double-exposure effect is due to a
+ mismatch in high frequencies.
+ In general, there is no choice of transition zone width that can avoid
+ both defects.
+ This dilemma can be resolved if each image is first decomposed into a set
+ of spatial-frequency bands.
+ Then a bandpass mosaic can be constructed in each band by use of a transition
+ zone that is comparable in width to the wavelengths represented in the
+ band.
+ The final mosaic is then obtained by summing the component bandpass mosaics.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+Using muti-resolution feature detectors like SIFT for detection and tracking.
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+In Lowe's paper
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-5"
+
+\end_inset
+
+, the idea is to fit a 3-D quadratic through the 
+\begin_inset Formula $scale-space$
+\end_inset
+
+ in order to determine a feature, since we want features to be invariant
+ to scale, rotation etc.
+ They are well localized in both the spatial and frequency domains, reducing
+ the probability of disruption by occlusion, clutter, or noise.
+ The rationale for considering various scales come from the nature of the
+ images themselves - they contain objects at various scales, and these objects
+ may contain features again at various scales.
+ Moreover, these objects can be at various distances, leading to different
+ sizes.
+ As a result, any analysis procedure that is applied only at a single scale
+ may miss information at other scales.
+ The solution is to carry out analyses at all scales simultaneously.
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Robotics competition: 
+\series default
+We assume that the goal of the competition is to cover all the landmarks
+ in 
+\series bold
+least amount of time.
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+
+\series bold
+Learning phase: 
+\series default
+The following two learning tasks have to be completed before the actual
+ run performance of the robot:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+
+\series bold
+Step 1: Training the cube detector:
+\series default
+ The landmarks given to us are cubes of different sizes and surface textures.
+ We would like to train a classifier similar to
+\begin_inset CommandInset citation
+LatexCommand cite
+key "key-4-1"
+
+\end_inset
+
+ as done by Viola-Jones for cube detection in our case.
+ Our primary goal is to be able to learn the concept of a cube by presenting
+ numerous examples of cubes and non-cubes in a setting similar to the discussion
+ in Question 1, but for cubes instead of faces.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Step 2: Training the cube recognizer: 
+\series default
+The first step on-site would be to train a classifier to recognize one cube
+ from the other.
+ Since it is known that different cubes have different textures, we assume
+ that such textures are visually discernible and uniform for all 6 faces
+ of a given cube.
+ Thus, if step 1 was analogous to face detection problem, this step is analogous
+ to face recognition problem.
+ However, this problem of cube recognition is probably way simpler than
+ of face recognition (using eigenfaces to reduce the dimension of the problem,
+ and looking for nearest neighbour in the eigenface space,) and we can adopt
+ simple time-efficient techniques like matching of SIFT features on the
+ surface of the cube in a nearest neighbour sense.
+ Either way, the design of this step is dictated by the computational power
+ available to us, the latter option being computationally cheaper.
+ Also, we can keep a tab of the size of the cubes upto a ratio, by ensuring
+ that each cube is scanned at a constant distance from the camera.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Run phase: 
+\series default
+Since we are allowed to carry our own stereo cameras, we can assume that
+ the two camera internal parameters are fixed and known to us, say 
+\begin_inset Formula $C_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $C_{2}$
+\end_inset
+
+.
+ The algorithmic strategy can be as outlined below:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+
+\series bold
+Step 1: Detecting the next target in the frame: 
+\series default
+This step requires us to run the cube detector trained in Step 1 of learning
+ phase.
+ As outlined in Question 1 part (c), the tracker to track the cube can be
+ initialized at the same time, and used for tracking the next target.
+ Also, a similar tracker is initiated for other cubes as and when they appear
+ in the frame while approaching the next target.
+ 
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Step 2: Recognizing the next target: 
+\series default
+Since we already have an indexed list of the cubes we are supposed to visit,
+ we would like to run the recognizer trained in Step 2 of the learning phase
+ to ensure that we don't end up visitng the same landmark again and again.
+ The idea is to have a list of landmarks to be visited, and use cube recognition
+ to ensure that whenever the next target is identified, we strike it off
+ from the list to avoid any re-visits.
+ 
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Step 3: Estimating the position of the next target: 
+\series default
+Next, we need to estimate the 3D world position of the cube.
+ This problem has been discussed in class for the case of two stereo calibrated
+ cameras.
+ The idea is to back project two 3D-rays corresponding to the same pixel
+ 
+\begin_inset Formula $p$
+\end_inset
+
+ common to a 3D-word point in both the images (found by matching SIFT features,
+ for instance), and look for the intersection in a least squares sense.
+ 
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Step 4: Moving towards the target cube: 
+\series default
+Since the exact R and t from the current position to the cube is now known,
+ the robot's movement control system can be fed with the instruction to
+ move to the target.
+ Simulataneously, step 1 of this phase keeps looking out for other targets
+ in parallel.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+
+\series bold
+Optimizations: 
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+We would love to reduce the costs, both computationally and hardware wise,
+ and hence would like to switch to a single camera.
+ With a single calibrated camera, we would orient the robot towards the
+ next target by powering the rotation motors of the bot till the cube comes
+ in the centre of the frame, and then proceeding towards the cube.
+ Since we have a tab on the size of the cubes, we would know the distance
+ to the cube from single view geometry as well (presence of knowledge of
+ one dimension).
+ 
+\end_layout
+
+\begin_layout Enumerate
+For the case of stereo cameras, in case of multiple available targets, we
+ would like to choose the one which is closer to the robot.
+ (greedy solution to a TSP problem.) 
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-1-1"
+
+\end_inset
+
+Vladimir Kolmogorov and Ramin Zabih.
+ Visual correspondence with occlusions using graph cuts.
+ In International Conference on Computer Vision, pages 508–515, 2001.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-2"
+
+\end_inset
+
+Vladimir Kolmogorov and Ramin Zabih.
+ Multi-camera Scene Reconstruction via Graph Cuts.
+ In European Conference on Computer Vision, pages 82-96, 2002.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-3-1"
+
+\end_inset
+
+P.
+ Viola and M.
+ J.
+ Jones, “Robust Real-time Face Detection”, In International Journal of Computer
+ Vision 57(2), pages 137–154, 2004.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-4-1"
+
+\end_inset
+
+P.
+ Viola and M.
+ J.
+ Jones, “Robust Real-time Object Detection”, In Proc.
+ of IEEE Workshop on Statistical and.
+ Theories of Computer Vision, 2001.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-5"
+
+\end_inset
+
+Lowe, D.
+ G., “Distinctive Image Features from Scale-Invariant Keypoints”, International
+ Journal of Computer Vision, 60, 2, pp.
+ 91-110, 2004
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "key-9"
+
+\end_inset
+
+E.
+ H.
+ Adelson et al, 
+\begin_inset Quotes eld
+\end_inset
+
+Pyramid methods in image processing
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
